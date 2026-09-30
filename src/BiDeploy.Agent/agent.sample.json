@@ -4,6 +4,7 @@
   "serverUrl": "http://MIKROSUNUCU:8765/",
   "lanListenPrefix": "http://+:8765/",
   "lanKey": "firmaya-ozel-en-az-16-karakter",
+  "adminPassword": "sunucu-ekrani-sifresi",
   "product": "Fly",
   "architecture": "x64",
   "forceCloseAfterMinutes": 10,

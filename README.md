@@ -18,7 +18,7 @@ bilgisayarlar, önceden indirilmiş imzalı setup ile aynı anda ve sessizce gü
    ürün ve mimari dosya adından (`Fly_v17xx_Client_Setupx064.exe` → Fly / x64) otomatik okunur.
 2. Sunucu ajanı yeni paketi VPS'ten bir kez indirir; istemciler yerel ağdan kendi diskine çeker. **Kurulum yapılmaz.**
 3. Bayi Mikro sunucusunu elle günceller.
-4. Bayi hazır olduğunda `BiDeploy.Agent.exe release` ("İstemcileri Güncelle") komutunu verir; önceden indirilen paket
+4. Bayi hazır olduğunda sunucu ekranındaki "İstemcileri Güncelle" butonuna basar (veya `BiDeploy.Agent.exe release`); önceden indirilen paket
    istemcilere serbest bırakılır. Ne zaman kurulacağına bayi karar verir, sistem Mikro'nun kurulu sürümünü okumaz.
 5. İstemcide Mikro açıksa kullanıcılar uyarılır (`msg *`, terminal server oturumları dahil), süre dolunca
    `MikroFly.exe` kapatılır ve setup `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS` ile kurulur.
@@ -38,6 +38,23 @@ Sunucu tarafında render edilen Türkçe panel (e-posta + şifre ile giriş).
 | Bayi: firmalar | Bayi: firma detayı | BiYazılım: bayiler |
 |---|---|---|
 | ![](docs/ekranlar/bayi-firmalar.png) | ![](docs/ekranlar/bayi-firma-detay.png) | ![](docs/ekranlar/yonetim-bayiler.png) |
+
+## Sunucu ekranı (Mikro sunucusunda)
+
+Bayi, Mikro sunucusuna uzak masaüstüyle bağlanıp `BiDeploy.Agent.exe ui` (ya da tarayıcıda `http://localhost:8765/ui`)
+ile açar. Ekran yalnızca sunucunun kendisinden erişilebilir ve `agent.json` içindeki `adminPassword` ile korunur;
+bu şifre istemcilere dağıtılan `lanKey`'den farklı olmak zorundadır (terminal server kullanıcıları güncelleme tetikleyemez).
+
+1. **Kullanıcıları uyarın:** hangi bilgisayarlarda Mikro'nun açık olduğu listelenir; tek tuşla Mikro'su açık olan
+   bilgisayarlara "Mikro'dan çıkın" mesajı gönderilir.
+2. **Mikro sunucusunu güncelleyin:** bayi sunucu setup'ını her zamanki gibi elle çalıştırır.
+3. **İstemcileri Güncelle:** önceden indirilmiş sürüm tüm istemcilere dağıtılır; ilerleme ve hatalar tabloda izlenir.
+
+"Şimdi kontrol et" yeni sürümü beklemeden VPS'ten sorgular. Sayfa 15 saniyede bir yenilenir.
+
+| Güncelleme öncesi | "İstemcileri Güncelle" sonrası |
+|---|---|
+| ![](docs/ekranlar/sunucu-ekrani.png) | ![](docs/ekranlar/sunucu-dagitim.png) |
 
 ## Güvenlik
 
@@ -93,6 +110,6 @@ Ajan: `agent.sample.json` dosyasını `agent.json` olarak exe'nin yanına koyun,
 ## Sıradaki adımlar
 
 - Başlatıcı (Mikro kısayolu: güncelleme bitmeden eski istemciyi açtırmaz)
-- Tepsi uygulaması / sunucu ekranı ("İstemcileri Güncelle" butonu, kimde Mikro açık listesi)
+- İstemcide tepsi bildirimi (şimdilik `msg *` ile Windows mesajı)
 - MSI kurulum paketi, Windows Firewall kuralı, ajanın kendini güncellemesi
 - EF Core migration'ları, lisans bitiş uyarıları (e-posta), kod imzalama sertifikası

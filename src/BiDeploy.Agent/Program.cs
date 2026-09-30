@@ -14,6 +14,7 @@ namespace BiDeploy.Agent
   BiDeploy.Agent.exe activate <KOD> <VKN>     Sunucu ajanını lisansla etkinleştir
   BiDeploy.Agent.exe release                  İstemcileri Güncelle (önceden indirilen sürümü kurdur)
   BiDeploy.Agent.exe status                   Sunucu ve istemci durumunu göster
+  BiDeploy.Agent.exe ui                       Sunucu ekranını tarayıcıda aç (http://localhost:8765/ui)
 
 Servis olarak kurulum (yönetici komut isteminde):
   sc create BiDeployAgent binPath= ""<yol>\BiDeploy.Agent.exe service"" start= auto
@@ -37,6 +38,8 @@ Servis olarak kurulum (yönetici komut isteminde):
                         return CallLocal(HttpMethod.Post, "local/v1/release");
                     case "status":
                         return CallLocal(HttpMethod.Get, "local/v1/status");
+                    case "ui":
+                        return OpenUi();
                     default:
                         Console.WriteLine(Usage);
                         return 1;
@@ -66,6 +69,15 @@ Servis olarak kurulum (yönetici komut isteminde):
             host.Server.ActivateAsync(args[1], args[2], MachineIdentity.GetMachineId(), Environment.MachineName, CancellationToken.None)
                 .GetAwaiter().GetResult();
             Console.WriteLine("Etkinleştirildi. Servis çalışıyorsa yeniden başlatın: sc stop BiDeployAgent && sc start BiDeployAgent");
+            return 0;
+        }
+
+        /// <summary>Sunucu ekranını varsayılan tarayıcıda açar (masaüstü kısayolu bu komutu çalıştırır).</summary>
+        private static int OpenUi()
+        {
+            var options = AgentOptions.Load(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "agent.json"));
+            var port = new Uri(options.LanListenPrefix.Replace("+", "localhost").Replace("*", "localhost")).Port;
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo($"http://localhost:{port}/ui") { UseShellExecute = true });
             return 0;
         }
 

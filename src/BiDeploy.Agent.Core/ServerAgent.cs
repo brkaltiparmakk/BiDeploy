@@ -23,6 +23,15 @@ namespace BiDeploy.Agent.Core
         private readonly ConcurrentDictionary<string, ClientStatus> _clients =
             new ConcurrentDictionary<string, ClientStatus>(StringComparer.OrdinalIgnoreCase);
         private readonly object _stateLock = new object();
+        private readonly SemaphoreSlim _checkNow = new SemaphoreSlim(0, 1);
+        private LanAnnouncement? _announcement;
+
+        /// <summary>VPS'e son başarılı erişim ve son hata; sunucu ekranında gösterilir.</summary>
+        public DateTime? LastVpsContactUtc { get; private set; }
+        public string? LastVpsError { get; private set; }
+        public string? CompanyTitle => _state.CompanyTitle;
+        public DateTime? LicenseExpiresAtUtc => _state.LicenseExpiresAtUtc;
+        public bool IsActivated => !string.IsNullOrEmpty(_state.DeviceToken);
 
         public ServerAgent(AgentOptions options, AgentState state, VpsClient vps, PackageCache cache,
             IClock clock, IAgentLog log)
@@ -86,9 +95,12 @@ namespace BiDeploy.Agent.Core
             try
             {
                 latest = await _vps.GetLatestAsync(_options.Product, _options.Architecture, ct).ConfigureAwait(false);
+                LastVpsContactUtc = _clock.UtcNow;
+                LastVpsError = null;
             }
             catch (Exception ex) when (!(ex is OperationCanceledException))
             {
+                LastVpsError = ex.Message;
                 // VPS'e ulaşılamasa da ajan elindeki paketlerle çalışmaya devam eder.
                 _log.Error("VPS'e ulaşılamadı, yerel paketlerle devam ediliyor", ex);
                 return;
@@ -149,6 +161,41 @@ namespace BiDeploy.Agent.Core
             }
         }
 
+        /// <summary>Sunucu ekranındaki "Şimdi kontrol et": bekleme süresini beklemeden bir tur çalıştırır.</summary>
+        public void RequestCheckNow()
+        {
+            try { _checkNow.Release(); } catch (SemaphoreFullException) { /* zaten istenmiş */ }
+        }
+
+        /// <summary>Bir sonraki tura kadar bekler; "Şimdi kontrol et" istenirse erken döner.</summary>
+        public async Task WaitForNextCycleAsync(TimeSpan interval, CancellationToken ct)
+        {
+            await _checkNow.WaitAsync(interval, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Mikro'su açık tüm istemcilerde gösterilecek duyuru. Bayi sunucuyu güncellemeden önce kullanıcıların
+        /// Mikro'dan çıkmasını istemek için kullanır.
+        /// </summary>
+        public LanAnnouncement Announce(string message, TimeSpan validFor)
+        {
+            if (string.IsNullOrWhiteSpace(message)) throw new ArgumentException("Mesaj boş olamaz.", nameof(message));
+            var announcement = new LanAnnouncement
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                Message = message.Trim(),
+                ExpiresAtUtc = _clock.UtcNow + validFor,
+            };
+            lock (_stateLock) _announcement = announcement;
+            _log.Info("Duyuru gönderildi: " + announcement.Message);
+            return announcement;
+        }
+
+        public System.Collections.Generic.IReadOnlyList<ClientStatus> Clients =>
+            _clients.Values.OrderBy(c => c.MachineName).ToList();
+
+        public DateTime Now => _clock.UtcNow;
+
         // ---- Yerel ağ tarafı ----
 
         public LanTargetResponse GetLanTarget()
@@ -161,6 +208,7 @@ namespace BiDeploy.Agent.Core
                     Release = _cache.TryGetReady(_state.ReleasedPackageId),
                     ReleasedAtUtc = _state.ReleasedAtUtc,
                     ForceCloseAfterMinutes = _options.ForceCloseAfterMinutes,
+                    Announcement = _announcement != null && _announcement.ExpiresAtUtc > _clock.UtcNow ? _announcement : null,
                 };
             }
         }

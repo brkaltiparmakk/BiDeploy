@@ -24,6 +24,7 @@ namespace BiDeploy.Agent.Core
         public string? LastFailedPackageId { get; set; }
         public DateTime? LastFailedAtUtc { get; set; }
         public string? LastError { get; set; }
+        public string? LastAnnouncementId { get; set; }
 
         public static AgentState Load(string path)
         {

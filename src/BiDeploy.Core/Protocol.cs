@@ -50,6 +50,16 @@ namespace BiDeploy.Core.Protocol
 
         /// <summary>Mikro açıksa uyarıdan kaç dakika sonra zorla kapatılacağı.</summary>
         public int ForceCloseAfterMinutes { get; set; } = 10;
+
+        /// <summary>Bayinin sunucu ekranından gönderdiği duyuru (örn. "Mikro'yu kapatın, sunucu güncellenecek").</summary>
+        public LanAnnouncement? Announcement { get; set; }
+    }
+
+    public sealed class LanAnnouncement
+    {
+        public string Id { get; set; } = "";
+        public string Message { get; set; } = "";
+        public DateTime ExpiresAtUtc { get; set; }
     }
 
     public enum ClientState

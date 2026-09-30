@@ -22,9 +22,11 @@ namespace BiDeploy.Agent.Core
         private readonly ServerAgent _agent;
         private readonly byte[] _lanKey;
         private readonly IAgentLog _log;
+        private readonly LocalUi? _ui;
 
-        public LanServer(string prefix, string lanKey, ServerAgent agent, IAgentLog log)
+        public LanServer(string prefix, string lanKey, ServerAgent agent, IAgentLog log, LocalUi? ui = null)
         {
+            _ui = ui;
             _listener.Prefixes.Add(prefix);
             _lanKey = Encoding.UTF8.GetBytes(lanKey);
             _agent = agent;
@@ -64,13 +66,23 @@ namespace BiDeploy.Agent.Core
             var response = context.Response;
             try
             {
+                var path = request.Url?.AbsolutePath ?? "";
+
+                // Sunucu ekranı: sadece bu makineden açılır, kendi şifresiyle korunur (LanKey istenmez).
+                if (_ui != null && (LocalUi.Handles(path) || path == "/"))
+                {
+                    if (!request.IsLocal) response.StatusCode = 404;
+                    else if (path == "/") { response.StatusCode = 302; response.AddHeader("Location", "/ui"); }
+                    else await _ui.HandleAsync(request, response).ConfigureAwait(false);
+                    return;
+                }
+
                 if (!IsAuthorized(request.Headers[KeyHeader]))
                 {
                     response.StatusCode = 401;
                     return;
                 }
 
-                var path = request.Url?.AbsolutePath ?? "";
                 if (request.HttpMethod == "GET" && path == "/lan/v1/target")
                 {
                     await WriteJson(response, _agent.GetLanTarget()).ConfigureAwait(false);

@@ -36,6 +36,9 @@ namespace BiDeploy.Agent.Core
         /// <summary>İstemcilerin sunucu ajanına bağlanırken kullandığı firma anahtarı.</summary>
         public string LanKey { get; set; } = "";
 
+        /// <summary>Sunucu rolü: sunucudaki bayi ekranının şifresi. İstemcilere dağıtılmaz (LanKey'den farklı olmalı).</summary>
+        public string AdminPassword { get; set; } = "";
+
         public string DataDirectory { get; set; } =
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "BiDeploy");
 
@@ -69,6 +72,8 @@ namespace BiDeploy.Agent.Core
                 throw new InvalidOperationException("Sunucu rolü için VpsUrl gerekli.");
             if (Role == AgentRole.Client && string.IsNullOrWhiteSpace(ServerUrl))
                 throw new InvalidOperationException("İstemci rolü için ServerUrl gerekli.");
+            if (Role.HasFlag(AgentRole.Server) && (AdminPassword.Length < 8 || AdminPassword == LanKey))
+                throw new InvalidOperationException("Sunucu rolü için en az 8 karakterlik, LanKey'den farklı bir AdminPassword gerekli.");
             if (string.IsNullOrWhiteSpace(LanKey) || LanKey.Length < 16)
                 throw new InvalidOperationException("LanKey en az 16 karakter olmalı.");
         }

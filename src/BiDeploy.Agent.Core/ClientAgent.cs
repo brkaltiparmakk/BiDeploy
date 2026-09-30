@@ -89,6 +89,16 @@ namespace BiDeploy.Agent.Core
             var processName = (release ?? prestaged)?.ProcessName;
             status.MikroRunning = processName != null && _processes.IsRunning(processName);
 
+            // Bayinin duyurusu: Mikro'su açık olan bilgisayarlarda bir kez gösterilir.
+            var announcement = target.Announcement;
+            if (announcement != null && announcement.Id != _state.LastAnnouncementId)
+            {
+                if (status.MikroRunning)
+                    _notifier.NotifyAll(announcement.Message, TimeSpan.FromMinutes(10));
+                _state.LastAnnouncementId = announcement.Id;
+                SaveState();
+            }
+
             if (release == null || release.PackageId == _state.LastInstalledPackageId)
             {
                 status.State = prestaged != null && prestaged.PackageId != _state.LastInstalledPackageId

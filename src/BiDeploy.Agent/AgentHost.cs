@@ -57,19 +57,21 @@ namespace BiDeploy.Agent
 
             if (Server != null)
             {
-                var lan = new LanServer(Options.LanListenPrefix, Options.LanKey, Server, Log);
+                var lan = new LanServer(Options.LanListenPrefix, Options.LanKey, Server, Log, new LocalUi(Server, Options));
                 lan.Start();
                 tasks.Add(lan.RunAsync(ct));
-                tasks.Add(Loop("sunucu", Server.RunCycleAsync, TimeSpan.FromSeconds(Options.ServerPollSeconds), ct));
+                tasks.Add(Loop("sunucu", Server.RunCycleAsync,
+                    c => Server.WaitForNextCycleAsync(TimeSpan.FromSeconds(Options.ServerPollSeconds), c), ct));
             }
             if (Client != null)
-                tasks.Add(Loop("istemci", Client.RunCycleAsync, TimeSpan.FromSeconds(Options.ClientPollSeconds), ct));
+                tasks.Add(Loop("istemci", Client.RunCycleAsync,
+                    c => Task.Delay(TimeSpan.FromSeconds(Options.ClientPollSeconds), c), ct));
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
             Log.Info("BiDeploy ajanı durdu.");
         }
 
-        private async Task Loop(string name, Func<CancellationToken, Task> cycle, TimeSpan interval, CancellationToken ct)
+        private async Task Loop(string name, Func<CancellationToken, Task> cycle, Func<CancellationToken, Task> wait, CancellationToken ct)
         {
             while (!ct.IsCancellationRequested)
             {
@@ -86,7 +88,7 @@ namespace BiDeploy.Agent
                     Log.Error($"{name} döngüsünde beklenmeyen hata", ex);
                 }
 
-                try { await Task.Delay(interval, ct).ConfigureAwait(false); }
+                try { await wait(ct).ConfigureAwait(false); }
                 catch (OperationCanceledException) { break; }
             }
         }
