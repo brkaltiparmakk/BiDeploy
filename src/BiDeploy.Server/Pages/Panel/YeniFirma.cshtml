@@ -1,0 +1,13 @@
+@page "/Panel/YeniFirma"
+@model YeniFirmaModel
+@{ ViewData["Title"] = "Firma ekle"; }
+<h1>Firma ekle</h1>
+<div class="card" style="max-width:520px">
+    @if (Model.FormError != null) { <div class="flash bad">@Model.FormError</div> }
+    <form method="post">
+        <p><label for="Title">Firma unvanı</label><input id="Title" name="Title" value="@Model.Title" required style="width:100%" /></p>
+        <p><label for="Vkn">VKN (şahıs firmaları için TCKN)</label><input id="Vkn" name="Vkn" value="@Model.Vkn" required inputmode="numeric" maxlength="11" style="width:100%" /></p>
+        <p><label><input type="checkbox" name="AssignLicense" value="true" checked /> Havuzdan lisans ata ve aktivasyon kodu üret</label></p>
+        <button type="submit">Kaydet</button>
+    </form>
+</div>

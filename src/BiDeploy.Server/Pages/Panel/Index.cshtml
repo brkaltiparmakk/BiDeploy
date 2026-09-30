@@ -1,0 +1,56 @@
+@page "/Panel"
+@model PanelIndexModel
+@{ ViewData["Title"] = "Firmalarım"; }
+<h1>@Model.DealerName</h1>
+
+<div class="stats">
+    <div class="stat"><b>@Model.AvailableLicenses</b><span>Havuzdaki boş lisans</span></div>
+    <div class="stat"><b>@Model.Companies.Count</b><span>Firma</span></div>
+    <div class="stat"><b>@Model.Companies.Sum(c => c.ClientCount)</b><span>İstemci bilgisayar</span></div>
+    <div class="stat"><b>@Model.Companies.Sum(c => c.Failed)</b><span>Hatalı kurulum</span></div>
+    <div class="stat"><b>@Model.Companies.Count(c => c.License is LicenseHealth.ExpiringSoon or LicenseHealth.Expired)</b><span>Süresi dolan / yaklaşan lisans</span></div>
+</div>
+
+<div class="card">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <h2 style="margin:0">Firmalar</h2>
+        <a class="btn" href="/Panel/YeniFirma">+ Firma ekle</a>
+    </div>
+    @if (Model.Companies.Count == 0)
+    {
+        <p class="muted">Henüz firma eklemediniz.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+        <table>
+            <thead><tr><th>Firma</th><th>VKN</th><th>Lisans</th><th>Sunucu</th><th>Dağıtılan sürüm</th><th>İstemciler</th></tr></thead>
+            <tbody>
+            @foreach (var c in Model.Companies)
+            {
+                <tr>
+                    <td><a href="/Panel/Firma/@c.Company.Id">@c.Company.Title</a></td>
+                    <td>@c.Company.Vkn</td>
+                    <td><partial name="_LicensePill" model="c" /></td>
+                    <td>
+                        @if (c.License is LicenseHealth.NotAssigned or LicenseHealth.NotActivated) { <span class="muted">—</span> }
+                        else if (c.ServerOnline) { <span class="pill ok">Çevrimiçi</span> }
+                        else { <span class="pill bad">Çevrimdışı</span> }
+                    </td>
+                    <td>@(c.Report?.ReleasedVersion ?? "—")</td>
+                    <td>
+                        @if (c.ClientCount == 0) { <span class="muted">—</span> }
+                        else
+                        {
+                            <span>@c.UpToDate/@c.ClientCount güncel</span>
+                            @if (c.Failed > 0) { <span class="pill bad">@c.Failed hata</span> }
+                            @if (c.WaitingForClose > 0) { <span class="pill warn">@c.WaitingForClose Mikro açık</span> }
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        </div>
+    }
+</div>

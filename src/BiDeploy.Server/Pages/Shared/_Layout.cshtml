@@ -1,0 +1,96 @@
+@{
+    var isAdmin = User.IsInRole(Roles.Admin);
+    var signedIn = User.Identity?.IsAuthenticated == true;
+}
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@(ViewData["Title"] is string t ? t + " · " : "")BiDeploy</title>
+    <style>
+        :root {
+            --bg: #f5f6f8; --card: #fff; --text: #1d2330; --muted: #6b7280; --line: #e3e6eb;
+            --brand: #1f5fbf; --ok: #16794a; --ok-bg: #e5f4ec; --warn: #9a5b00; --warn-bg: #fdf1dc;
+            --bad: #b3261e; --bad-bg: #fbe7e6;
+        }
+        @@media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #14171c; --card: #1d2128; --text: #e7e9ee; --muted: #9aa1ad; --line: #2e333c;
+                --brand: #6ea2f0; --ok: #62c793; --ok-bg: #173325; --warn: #f0b14d; --warn-bg: #3a2c12;
+                --bad: #f08a84; --bad-bg: #3b1b19;
+            }
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+        header { background: var(--card); border-bottom: 1px solid var(--line); }
+        header .bar { max-width: 1100px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        header .logo { font-weight: 700; color: var(--brand); text-decoration: none; font-size: 18px; }
+        header nav { display: flex; gap: 16px; flex: 1; }
+        header nav a { color: var(--text); text-decoration: none; }
+        header form { margin: 0; }
+        main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+        h1 { font-size: 22px; margin: 0 0 16px; }
+        h2 { font-size: 17px; margin: 0 0 12px; }
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 18px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+        .stat b { display: block; font-size: 24px; }
+        .stat span { color: var(--muted); font-size: 13px; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+        th { font-size: 13px; color: var(--muted); font-weight: 600; }
+        a { color: var(--brand); }
+        .muted { color: var(--muted); }
+        .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; white-space: nowrap; background: var(--line); }
+        .pill.ok { background: var(--ok-bg); color: var(--ok); }
+        .pill.warn { background: var(--warn-bg); color: var(--warn); }
+        .pill.bad { background: var(--bad-bg); color: var(--bad); }
+        .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
+        .flash.ok { background: var(--ok-bg); color: var(--ok); }
+        .flash.bad { background: var(--bad-bg); color: var(--bad); }
+        form.inline { display: inline; }
+        .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+        label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+        input { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--text); min-width: 0; }
+        button, .btn { font: inherit; padding: 8px 14px; border-radius: 7px; border: 1px solid var(--brand); background: var(--brand); color: #fff; cursor: pointer; text-decoration: none; display: inline-block; }
+        button.secondary { background: transparent; color: var(--brand); }
+        button.link { background: none; border: none; color: var(--brand); padding: 0; }
+        code.big { font-size: 20px; letter-spacing: 2px; font-weight: 700; }
+        .err { color: var(--bad); font-size: 13px; max-width: 420px; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="bar">
+            <a class="logo" href="/">BiDeploy</a>
+            <nav>
+                @if (signedIn && isAdmin)
+                {
+                    <a href="/Yonetim">Bayiler</a>
+                    <a href="/Yonetim/Paketler">Paketler</a>
+                }
+                else if (signedIn)
+                {
+                    <a href="/Panel">Firmalarım</a>
+                    <a href="/Panel/YeniFirma">Firma ekle</a>
+                }
+            </nav>
+            @if (signedIn)
+            {
+                <span class="muted">@User.Identity!.Name</span>
+                <form method="post" asp-page="/Cikis"><button class="link" type="submit">Çıkış</button></form>
+            }
+        </div>
+    </header>
+    <main>
+        @if (Model is PanelPageModel pm)
+        {
+            if (pm.Message != null) { <div class="flash ok">@pm.Message</div> }
+            if (pm.Error != null) { <div class="flash bad">@pm.Error</div> }
+        }
+        @RenderBody()
+    </main>
+</body>
+</html>

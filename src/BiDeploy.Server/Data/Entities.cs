@@ -11,6 +11,24 @@ public class Dealer
     public List<Company> Companies { get; set; } = new();
 }
 
+public static class Roles
+{
+    public const string Admin = "Admin";
+    public const string Dealer = "Dealer";
+}
+
+/// <summary>Panele giriş yapan kullanıcı: BiYazılım yöneticisi veya bir bayinin çalışanı.</summary>
+public class User
+{
+    public int Id { get; set; }
+    public string Email { get; set; } = "";
+    public string PasswordHash { get; set; } = "";
+    public string Role { get; set; } = Roles.Dealer;
+    public int? DealerId { get; set; }
+    public Dealer? Dealer { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+}
+
 /// <summary>Bayinin müşterisi. Bir VKN = bir Mikro sunucusu = bir lisans.</summary>
 public class Company
 {

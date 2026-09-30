@@ -1,0 +1,9 @@
+@model CompanyStatus
+@switch (Model.License)
+{
+    case LicenseHealth.NotAssigned: <span class="pill">Lisans yok</span> break;
+    case LicenseHealth.NotActivated: <span class="pill warn">Kurulum bekleniyor</span> break;
+    case LicenseHealth.Active: <span class="pill ok">@Model.DaysLeft gün</span> break;
+    case LicenseHealth.ExpiringSoon: <span class="pill warn">@Model.DaysLeft gün kaldı</span> break;
+    case LicenseHealth.Expired: <span class="pill bad">Süresi doldu</span> break;
+}

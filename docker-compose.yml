@@ -1,5 +1,5 @@
 # VPS kurulumu: docker compose up -d
-# Önce .env dosyasında BIDEPLOY_ADMIN_KEY ve POSTGRES_PASSWORD tanımlayın, keys/publisher.pub.json dosyasını koyun.
+# Önce .env dosyasında DOMAIN, BIDEPLOY_ADMIN_KEY, POSTGRES_PASSWORD, ADMIN_EMAIL, ADMIN_PASSWORD tanımlayın, keys/publisher.pub.json dosyasını koyun.
 services:
   db:
     image: postgres:17
@@ -22,6 +22,8 @@ services:
       BiDeploy__DatabaseProvider: Postgres
       BiDeploy__PublisherPublicKeyPath: /keys/publisher.pub.json
       BiDeploy__StorageDirectory: /storage
+      BiDeploy__InitialAdminEmail: ${ADMIN_EMAIL:?ADMIN_EMAIL gerekli}
+      BiDeploy__InitialAdminPassword: ${ADMIN_PASSWORD:?ADMIN_PASSWORD gerekli}
       ConnectionStrings__BiDeploy: Host=db;Database=bideploy;Username=bideploy;Password=${POSTGRES_PASSWORD}
     volumes:
       - ./keys/publisher.pub.json:/keys/publisher.pub.json:ro

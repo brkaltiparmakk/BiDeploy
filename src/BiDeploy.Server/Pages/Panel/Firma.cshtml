@@ -1,0 +1,88 @@
+@page "/Panel/Firma/{id:int}"
+@model FirmaModel
+@{ var s = Model.Status!; var l = s.Company.License; ViewData["Title"] = s.Company.Title; }
+<p><a href="/Panel">← Firmalarım</a></p>
+<h1>@s.Company.Title <span class="muted" style="font-weight:400;font-size:15px">VKN @s.Company.Vkn</span></h1>
+
+<div class="card">
+    <h2>Lisans</h2>
+    @if (l == null)
+    {
+        <p class="muted">Bu firmaya henüz lisans atanmadı. Havuzunuzda @Model.AvailableLicenses lisans var.</p>
+        <form method="post" asp-page-handler="Assign"><button type="submit">Havuzdan lisans ata</button></form>
+    }
+    else
+    {
+        <div class="row" style="gap:28px;margin-bottom:14px">
+            <div><label>Aktivasyon kodu</label><code class="big">@l.ActivationCode</code></div>
+            <div><label>Durum</label><partial name="_LicensePill" model="s" /></div>
+            <div><label>Bitiş</label>@TurkeyTime.Format(l.ExpiresAtUtc, "dd.MM.yyyy", "Etkinleştirmede başlar")</div>
+            <div><label>Sunucu</label>@(l.MachineName ?? "—")</div>
+            <div><label>Son görülme</label>@TurkeyTime.Format(l.LastSeenAtUtc, "dd.MM.yyyy HH:mm", "—")</div>
+        </div>
+        @if (l.DeviceTokenHash == null)
+        {
+            <p class="muted">Mikro sunucusunda: <code>BiDeploy.Agent.exe activate @l.ActivationCode @s.Company.Vkn</code></p>
+        }
+        <div class="row">
+            @if (l.ActivatedAtUtc != null)
+            {
+                <form method="post" asp-page-handler="Renew" onsubmit="return confirm('Havuzdan 1 lisans düşülerek süre 1 yıl uzatılacak. Onaylıyor musunuz?')">
+                    <button type="submit">1 yıl yenile</button>
+                </form>
+            }
+            @if (l.MachineId != null)
+            {
+                <form method="post" asp-page-handler="Transfer" onsubmit="return confirm('Lisans mevcut sunucudan çözülecek ve o sunucu güncelleme alamayacak. Yeni sunucuda aynı kodla etkinleştirin. Devam edilsin mi?')">
+                    <button type="submit" class="secondary">Sunucu değişti: lisansı taşı</button>
+                </form>
+            }
+        </div>
+    }
+</div>
+
+@if (s.Report != null)
+{
+    <div class="stats">
+        <div class="stat"><b>@(s.Report.PrestagedVersion ?? "—")</b><span>Sunucuda hazır sürüm</span></div>
+        <div class="stat"><b>@(s.Report.ReleasedVersion ?? "—")</b><span>Dağıtımı başlatılan sürüm</span></div>
+        <div class="stat"><b>@s.UpToDate/@s.ClientCount</b><span>Güncel istemci</span></div>
+        <div class="stat"><b>@s.MikroOpen</b><span>Mikro'su açık bilgisayar</span></div>
+    </div>
+
+    <div class="card">
+        <h2>İstemciler</h2>
+        @if (s.ClientCount == 0)
+        {
+            <p class="muted">Henüz rapor veren istemci yok.</p>
+        }
+        else
+        {
+            <div class="table-wrap">
+            <table>
+                <thead><tr><th>Bilgisayar</th><th>Durum</th><th>Kurulu</th><th>Hazır</th><th>Mikro</th><th>Son rapor</th></tr></thead>
+                <tbody>
+                @foreach (var c in s.Report.Clients)
+                {
+                    <tr>
+                        <td>@c.MachineName</td>
+                        <td>
+                            <span class="pill @CompanyStatus.StateCss(c.State)">@CompanyStatus.StateText(c.State)</span>
+                            @if (c.LastError != null) { <div class="err">@c.LastError</div> }
+                        </td>
+                        <td>@(c.InstalledVersion ?? "—")</td>
+                        <td>@(c.PrestagedVersion ?? "—")</td>
+                        <td>@(c.MikroRunning ? "Açık" : "Kapalı")</td>
+                        <td class="muted">@TurkeyTime.Format(c.ReportedAtUtc, "dd.MM HH:mm")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            </div>
+        }
+    </div>
+}
+else if (l?.DeviceTokenHash != null)
+{
+    <div class="card muted">Sunucu ajanı etkinleştirildi, ilk rapor bekleniyor.</div>
+}

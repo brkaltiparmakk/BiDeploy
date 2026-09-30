@@ -1,0 +1,13 @@
+@page "/Giris"
+@model GirisModel
+@{ ViewData["Title"] = "Giriş"; }
+<div class="card" style="max-width:380px;margin:40px auto">
+    <h1>Giriş</h1>
+    @if (Model.Failed) { <div class="flash bad">E-posta veya şifre hatalı.</div> }
+    <form method="post">
+        <p><label for="Email">E-posta</label><input id="Email" name="Email" type="email" value="@Model.Email" required autofocus style="width:100%" /></p>
+        <p><label for="Password">Şifre</label><input id="Password" name="Password" type="password" required style="width:100%" /></p>
+        <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+        <button type="submit">Giriş yap</button>
+    </form>
+</div>

@@ -18,6 +18,10 @@ public class ServerOptions
 
     public int LicenseDays { get; set; } = 365;
 
+    /// <summary>Veritabanında hiç yönetici yoksa oluşturulacak ilk panel hesabı.</summary>
+    public string InitialAdminEmail { get; set; } = "";
+    public string InitialAdminPassword { get; set; } = "";
+
     public PackageSigning.KeyFile LoadPublisherKey()
     {
         if (string.IsNullOrWhiteSpace(PublisherPublicKeyPath) || !File.Exists(PublisherPublicKeyPath))

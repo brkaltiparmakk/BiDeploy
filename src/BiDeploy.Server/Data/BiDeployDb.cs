@@ -8,6 +8,7 @@ public class BiDeployDb(DbContextOptions<BiDeployDb> options) : DbContext(option
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<License> Licenses => Set<License>();
     public DbSet<Package> Packages => Set<Package>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -17,6 +18,7 @@ public class BiDeployDb(DbContextOptions<BiDeployDb> options) : DbContext(option
         b.Entity<License>().HasIndex(l => l.ActivationCode).IsUnique();
         b.Entity<License>().HasIndex(l => l.DeviceTokenHash).IsUnique();
         b.Entity<Package>().HasIndex(p => p.PackageId).IsUnique();
+        b.Entity<User>().HasIndex(u => u.Email).IsUnique();
         b.Entity<Package>().HasIndex(p => new { p.Product, p.Architecture, p.VersionSortKey });
     }
 }

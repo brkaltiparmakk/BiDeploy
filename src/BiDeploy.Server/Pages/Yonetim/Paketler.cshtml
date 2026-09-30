@@ -1,0 +1,35 @@
+@page "/Yonetim/Paketler"
+@model PaketlerModel
+@{ ViewData["Title"] = "Paketler"; }
+<h1>Yayınlanan paketler</h1>
+<p class="muted">Paketler yayıncı aracıyla imzalanıp yüklenir (<code>bideploy-publish publish ...</code>). Sorunlu bir sürümü geri çekerseniz sunucu ajanlarına artık sunulmaz; önceki sürüm tekrar en yeni olarak görünür.</p>
+<div class="card">
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>Ürün</th><th>Mimari</th><th>Sürüm</th><th>Boyut</th><th>Yayın</th><th>Durum</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var p in Model.Packages)
+        {
+            <tr>
+                <td>@p.Product</td>
+                <td>@p.Architecture</td>
+                <td>@p.Version</td>
+                <td>@(p.FileSize / (1024 * 1024)) MB</td>
+                <td>@TurkeyTime.Format(p.PublishedAtUtc, "dd.MM.yyyy HH:mm")</td>
+                <td>@if (p.IsActive) { <span class="pill ok">Yayında</span> } else { <span class="pill bad">Geri çekildi</span> }</td>
+                <td>
+                    @if (p.IsActive)
+                    {
+                        <form method="post" asp-page-handler="Withdraw" onsubmit="return confirm('@p.PackageId geri çekilsin mi?')">
+                            <input type="hidden" name="packageId" value="@p.PackageId" />
+                            <button type="submit" class="secondary">Geri çek</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+    </div>
+    @if (Model.Packages.Count == 0) { <p class="muted">Henüz paket yayınlanmadı.</p> }
+</div>

@@ -1,0 +1,46 @@
+@page "/Yonetim"
+@model YonetimIndexModel
+@{ ViewData["Title"] = "Bayiler"; }
+<h1>Bayiler</h1>
+
+@if (Model.NewApiKey != null)
+{
+    <div class="flash ok">Bayi API anahtarı (sadece şimdi gösteriliyor, entegrasyon için saklayın): <code>@Model.NewApiKey</code></div>
+}
+
+<div class="card">
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>Bayi</th><th>Boş lisans</th><th>Firma</th><th>Etkin sunucu</th><th>Havuza lisans ekle</th></tr></thead>
+        <tbody>
+        @foreach (var d in Model.Dealers)
+        {
+            <tr>
+                <td>@d.Name</td>
+                <td>@d.AvailableLicenses</td>
+                <td>@d.Companies</td>
+                <td>@d.ActiveServers</td>
+                <td>
+                    <form method="post" asp-page-handler="AddLicenses" class="row">
+                        <input type="hidden" name="dealerId" value="@d.Id" />
+                        <input name="count" type="number" value="10" style="width:80px" />
+                        <button type="submit" class="secondary">Ekle</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+    </div>
+    @if (Model.Dealers.Count == 0) { <p class="muted">Henüz bayi yok.</p> }
+</div>
+
+<div class="card" style="max-width:520px">
+    <h2>Yeni bayi</h2>
+    <form method="post" asp-page-handler="CreateDealer">
+        <p><label for="Name">Bayi adı</label><input id="Name" name="Name" required style="width:100%" /></p>
+        <p><label for="Email">Kullanıcı e-postası</label><input id="Email" name="Email" type="email" required style="width:100%" /></p>
+        <p><label for="Password">İlk şifre (en az @LicenseService.MinPasswordLength karakter)</label><input id="Password" name="Password" type="text" required style="width:100%" /></p>
+        <button type="submit">Bayi oluştur</button>
+    </form>
+</div>

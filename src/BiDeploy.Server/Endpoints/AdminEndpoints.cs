@@ -1,6 +1,7 @@
 using System.Text;
 using BiDeploy.Core;
 using BiDeploy.Server.Data;
+using BiDeploy.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -9,7 +10,7 @@ namespace BiDeploy.Server.Endpoints;
 /// <summary>BiYazılım yönetimi: bayiler, lisans havuzu, paket yayını.</summary>
 public static class AdminEndpoints
 {
-    public record CreateDealerRequest(string Name);
+    public record CreateDealerRequest(string Name, string? UserEmail = null, string? UserPassword = null);
     public record CreateDealerResponse(int Id, string Name, string ApiKey);
     public record AddLicensesRequest(int Count);
 
@@ -17,15 +18,11 @@ public static class AdminEndpoints
     {
         var admin = app.MapGroup("/api/admin").RequireAdmin();
 
-        admin.MapPost("/dealers", async (CreateDealerRequest req, BiDeployDb db, TimeProvider time) =>
+        admin.MapPost("/dealers", async (CreateDealerRequest req, LicenseService licenses) =>
         {
-            if (string.IsNullOrWhiteSpace(req.Name)) return Results.BadRequest("Bayi adı gerekli.");
-            var apiKey = Secrets.NewToken();
-            var dealer = new Dealer { Name = req.Name.Trim(), ApiKeyHash = Secrets.Hash(apiKey), CreatedAtUtc = time.GetUtcNow().UtcDateTime };
-            db.Dealers.Add(dealer);
-            await db.SaveChangesAsync();
+            var result = await licenses.CreateDealerAsync(req.Name, req.UserEmail, req.UserPassword);
             // API anahtarı yalnızca bu yanıtta görünür; veritabanında özeti tutulur.
-            return Results.Ok(new CreateDealerResponse(dealer.Id, dealer.Name, apiKey));
+            return result.ToHttp(r => new CreateDealerResponse(r.Dealer.Id, r.Dealer.Name, r.ApiKey));
         });
 
         admin.MapGet("/dealers", async (BiDeployDb db) =>
@@ -33,16 +30,8 @@ public static class AdminEndpoints
                 .Select(d => new { d.Id, d.Name, d.AvailableLicenses, Companies = d.Companies.Count })
                 .ToListAsync());
 
-        admin.MapPost("/dealers/{id:int}/licenses", async (int id, AddLicensesRequest req, BiDeployDb db) =>
-        {
-            if (req.Count == 0) return Results.BadRequest("Adet sıfır olamaz.");
-            var dealer = await db.Dealers.FindAsync(id);
-            if (dealer == null) return Results.NotFound();
-            if (dealer.AvailableLicenses + req.Count < 0) return Results.BadRequest("Havuzda yeterli lisans yok.");
-            dealer.AvailableLicenses += req.Count;
-            await db.SaveChangesAsync();
-            return Results.Ok(new { dealer.Id, dealer.AvailableLicenses });
-        });
+        admin.MapPost("/dealers/{id:int}/licenses", async (int id, AddLicensesRequest req, LicenseService licenses) =>
+            (await licenses.AddLicensesAsync(id, req.Count)).ToHttp(d => new { d.Id, d.AvailableLicenses }));
 
         // Paket yükleme: Yayıncı aracı manifest.json + manifest.sig + setup dosyasını gönderir.
         // VPS imzayı ve dosya özetini kendisi de doğrular; imzasız/bozuk paket kabul edilmez.

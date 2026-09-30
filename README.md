@@ -24,6 +24,21 @@ bilgisayarlar, önceden indirilmiş imzalı setup ile aynı anda ve sessizce gü
    `MikroFly.exe` kapatılır ve setup `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS` ile kurulur.
 6. Sonuç sunucu ajanına, oradan VPS'e raporlanır; bayi `GET /api/dealer/companies` ile görür.
 
+## Web paneli
+
+Sunucu tarafında render edilen Türkçe panel (e-posta + şifre ile giriş).
+
+- **Bayi** (`/Panel`): firma ekleme (VKN/TCKN doğrulamalı), havuzdan lisans atama, aktivasyon kodu, yıllık yenileme,
+  sunucu değişiminde lisans taşıma; her firmanın sunucusunun çevrimiçi olup olmadığı, dağıtılan sürüm ve her istemcinin
+  durumu (güncel / Mikro'nun kapanması bekleniyor / hata + kurulum logu).
+- **BiYazılım** (`/Yonetim`): bayi ve bayi kullanıcısı oluşturma, havuza lisans yükleme, yayınlanan paketler ve geri çekme.
+- İlk yönetici hesabı `BiDeploy__InitialAdminEmail` / `BiDeploy__InitialAdminPassword` ile oluşturulur (hiç yönetici yoksa).
+- Bir bayi başka bayinin firmalarını göremez. Saatler Türkiye saatiyle gösterilir.
+
+| Bayi: firmalar | Bayi: firma detayı | BiYazılım: bayiler |
+|---|---|---|
+| ![](docs/ekranlar/bayi-firmalar.png) | ![](docs/ekranlar/bayi-firma-detay.png) | ![](docs/ekranlar/yonetim-bayiler.png) |
+
 ## Güvenlik
 
 - Her paketin manifesti (sürüm, SHA-256, kurulum parametreleri) BiYazılım'ın **RSA-3072** özel anahtarıyla imzalanır.
@@ -41,7 +56,7 @@ bilgisayarlar, önceden indirilmiş imzalı setup ile aynı anda ve sessizce gü
 | `BiDeploy.Core` | netstandard2.0 | Manifest, imza, VKN/TCKN doğrulama, protokol modelleri |
 | `BiDeploy.Agent.Core` | netstandard2.0 | Ajan mantığı: paket önbelleği, sunucu/istemci döngüleri, yerel ağ sunucusu |
 | `BiDeploy.Agent` | .NET Framework 4.8 | Windows servisi + CLI (Server 2012 R2 – Windows 11) |
-| `BiDeploy.Server` | .NET 10 | VPS API (ASP.NET Core, PostgreSQL / geliştirmede SQLite) |
+| `BiDeploy.Server` | .NET 10 | VPS API + web paneli (ASP.NET Core Razor Pages, PostgreSQL / geliştirmede SQLite) |
 | `BiDeploy.Publisher` | .NET 10 | Yayıncı aracı (`bideploy-publish`) |
 | `BiDeploy.Tests` | .NET 10 | Uçtan uca akış dahil testler |
 
@@ -54,9 +69,10 @@ dotnet test                                    # tüm testler
 dotnet run --project src/BiDeploy.Publisher -- keygen --out keys
 cp keys/publisher.pub.json src/BiDeploy.Agent/trusted-publisher.pub.json   # ajana gömülür
 
-# 2) VPS (geliştirme)
-BiDeploy__AdminKey=gizli dotnet run --project src/BiDeploy.Server
-#    Üretim: .env içinde DOMAIN, BIDEPLOY_ADMIN_KEY, POSTGRES_PASSWORD → docker compose up -d
+# 2) VPS (geliştirme) → http://localhost:5000/Giris
+BiDeploy__AdminKey=gizli BiDeploy__InitialAdminEmail=admin@firma.com BiDeploy__InitialAdminPassword=Sifre-1234 \
+    BiDeploy__PublisherPublicKeyPath=keys/publisher.pub.json dotnet run --project src/BiDeploy.Server
+#    Üretim: .env içinde DOMAIN, BIDEPLOY_ADMIN_KEY, POSTGRES_PASSWORD, ADMIN_EMAIL, ADMIN_PASSWORD → docker compose up -d
 
 # 3) Paket yayınla
 bideploy-publish publish Fly_v17xx_Client_Setupx064.exe --key keys/publisher.key.json \
@@ -76,7 +92,6 @@ Ajan: `agent.sample.json` dosyasını `agent.json` olarak exe'nin yanına koyun,
 
 ## Sıradaki adımlar
 
-- Bayi web paneli (Blazor) — şu an API hazır, arayüz yok
 - Başlatıcı (Mikro kısayolu: güncelleme bitmeden eski istemciyi açtırmaz)
 - Tepsi uygulaması / sunucu ekranı ("İstemcileri Güncelle" butonu, kimde Mikro açık listesi)
 - MSI kurulum paketi, Windows Firewall kuralı, ajanın kendini güncellemesi
