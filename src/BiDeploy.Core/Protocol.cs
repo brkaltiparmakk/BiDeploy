@@ -31,7 +31,6 @@ namespace BiDeploy.Core.Protocol
     public sealed class ServerReport
     {
         public string AgentVersion { get; set; } = "";
-        public string? ServerMikroVersion { get; set; }
         public string? PrestagedVersion { get; set; }
         public string? ReleasedVersion { get; set; }
         public List<ClientStatus> Clients { get; set; } = new List<ClientStatus>();
@@ -44,7 +43,7 @@ namespace BiDeploy.Core.Protocol
         /// <summary>İstemcilerin önceden indirip hazır bekletmesi gereken en yeni paket.</summary>
         public SignedManifest? Prestage { get; set; }
 
-        /// <summary>Kurulumu serbest bırakılmış paket (sunucu bu sürüme güncellendi). null ise kurulum yapılmaz.</summary>
+        /// <summary>Bayinin kurulumunu serbest bıraktığı paket. null ise kurulum yapılmaz.</summary>
         public SignedManifest? Release { get; set; }
 
         public DateTime? ReleasedAtUtc { get; set; }

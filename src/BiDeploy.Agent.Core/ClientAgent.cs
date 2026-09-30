@@ -19,7 +19,6 @@ namespace BiDeploy.Agent.Core
         private readonly HttpClient _http;
         private readonly Uri _serverUri;
         private readonly PackageCache _cache;
-        private readonly IMikroInstallation _mikro;
         private readonly IProcessControl _processes;
         private readonly IInstallerRunner _installer;
         private readonly IUserNotifier _notifier;
@@ -28,7 +27,7 @@ namespace BiDeploy.Agent.Core
         private readonly string _machineName;
 
         public ClientAgent(AgentOptions options, AgentState state, HttpClient http, PackageCache cache,
-            IMikroInstallation mikro, IProcessControl processes, IInstallerRunner installer, IUserNotifier notifier,
+            IProcessControl processes, IInstallerRunner installer, IUserNotifier notifier,
             IClock clock, IAgentLog log, string machineName)
         {
             _options = options;
@@ -36,7 +35,6 @@ namespace BiDeploy.Agent.Core
             _http = http;
             _serverUri = new Uri(options.ServerUrl.TrimEnd('/') + "/");
             _cache = cache;
-            _mikro = mikro;
             _processes = processes;
             _installer = installer;
             _notifier = notifier;
@@ -84,20 +82,18 @@ namespace BiDeploy.Agent.Core
                 status.PrestagedVersion = prestaged.Version;
             }
 
-            // 2) Serbest bırakılmış sürüm var mı?
+            // 2) Bayi kurulumu serbest bıraktı mı? Hangi paketin kurulduğunu ajan kendisi kaydeder,
+            //    Mikro'nun sürümü okunmaz; aynı paket ikinci kez kurulmaz.
             var release = target.Release == null ? null : await DownloadAsync(target.Release, ct).ConfigureAwait(false);
-            var mainExe = release?.MainExecutable ?? prestaged?.MainExecutable ?? ServerAgent.DefaultMainExecutable(_options.Product);
-            status.InstalledVersion = _mikro.GetInstalledVersion(mainExe);
-            var processName = release?.ProcessName ?? Path.GetFileNameWithoutExtension(mainExe);
-            status.MikroRunning = _processes.IsRunning(processName);
+            status.InstalledVersion = _state.LastInstalledVersion;
+            var processName = (release ?? prestaged)?.ProcessName;
+            status.MikroRunning = processName != null && _processes.IsRunning(processName);
 
-            // Eski sürüme asla dönülmez: serbest bırakılan sürüm kuruludan büyük değilse bir şey yapılmaz.
-            if (release == null || MikroVersion.Compare(release.Version, status.InstalledVersion) <= 0)
+            if (release == null || release.PackageId == _state.LastInstalledPackageId)
             {
-                status.State = status.InstalledVersion == null ? ClientState.Unknown
-                    : release == null && prestaged != null && MikroVersion.Compare(prestaged.Version, status.InstalledVersion) > 0
-                        ? ClientState.Ready
-                        : ClientState.UpToDate;
+                status.State = prestaged != null && prestaged.PackageId != _state.LastInstalledPackageId
+                    ? ClientState.Ready
+                    : _state.LastInstalledPackageId != null ? ClientState.UpToDate : ClientState.Unknown;
                 ClearWaiting();
                 return;
             }
@@ -120,7 +116,7 @@ namespace BiDeploy.Agent.Core
                     SaveState();
                     var minutes = target.ForceCloseAfterMinutes;
                     _notifier.NotifyAll(
-                        $"Mikro sunucusu {release.Version} sürümüne güncellendi. Mikro {minutes} dakika içinde kapatılıp güncellenecek. " +
+                        $"Mikro {release.Version} sürümüne güncellenecek. Mikro {minutes} dakika içinde kapatılacak. " +
                         "Lütfen açık işlemlerinizi kaydedip Mikro'yu kapatın.", TimeSpan.FromMinutes(minutes));
                 }
 
@@ -131,7 +127,7 @@ namespace BiDeploy.Agent.Core
                 }
 
                 _log.Info("Bekleme süresi doldu, Mikro kapatılıyor.");
-                _processes.Kill(processName);
+                _processes.Kill(release.ProcessName);
                 status.MikroRunning = false;
             }
 
@@ -146,13 +142,13 @@ namespace BiDeploy.Agent.Core
 
             _log.Info($"Kurulum başlıyor: {release.PackageId}");
             var result = _installer.Run(setup, release.InstallerArguments, logPath, TimeSpan.FromMinutes(_options.InstallTimeoutMinutes));
-            var installedAfter = _mikro.GetInstalledVersion(release.MainExecutable);
-            status.InstalledVersion = installedAfter;
-
-            if (result.Succeeded && MikroVersion.Compare(installedAfter, release.Version) >= 0)
+            if (result.Succeeded)
             {
-                _log.Info($"Kurulum tamamlandı: {installedAfter}");
+                _log.Info($"Kurulum tamamlandı: {release.Version}");
                 status.State = ClientState.UpToDate;
+                status.InstalledVersion = release.Version;
+                _state.LastInstalledPackageId = release.PackageId;
+                _state.LastInstalledVersion = release.Version;
                 _state.LastFailedPackageId = null;
                 _state.LastFailedAtUtc = null;
                 _state.LastError = null;
@@ -163,9 +159,7 @@ namespace BiDeploy.Agent.Core
 
             var error = result.TimedOut
                 ? $"Kurulum {_options.InstallTimeoutMinutes} dakikada bitmedi."
-                : result.ExitCode != 0
-                    ? $"Kurulum çıkış kodu {result.ExitCode}."
-                    : $"Kurulum sonrası sürüm {installedAfter ?? "okunamadı"}, beklenen {release.Version}.";
+                : $"Kurulum çıkış kodu {result.ExitCode}.";
             if (!string.IsNullOrWhiteSpace(result.LogTail)) error += " Log: " + result.LogTail;
             _log.Error("Kurulum başarısız: " + error);
             status.State = ClientState.Failed;

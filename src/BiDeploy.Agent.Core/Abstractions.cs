@@ -2,13 +2,6 @@ using System;
 
 namespace BiDeploy.Agent.Core
 {
-    /// <summary>Kurulu Mikro sürümünü okur (Windows'ta registry + exe FileVersion).</summary>
-    public interface IMikroInstallation
-    {
-        /// <returns>Kurulu değilse null.</returns>
-        string? GetInstalledVersion(string mainExecutable);
-    }
-
     public interface IProcessControl
     {
         bool IsRunning(string processName);

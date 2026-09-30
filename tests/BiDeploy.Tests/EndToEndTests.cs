@@ -14,14 +14,14 @@ namespace BiDeploy.Tests;
 
 /// <summary>
 /// Güncelleme günü akışının tamamı: yayın → sunucu ajanı önceden indirir → istemci önceden indirir →
-/// sunucu güncellenir → "İstemcileri Güncelle" → açık Mikro uyarılır ve kapatılır → sessiz kurulum → rapor bayi panelinde.
+/// bayi sunucuyu günceller ve "İstemcileri Güncelle" der → açık Mikro uyarılır ve kapatılır → sessiz kurulum
+/// (hata olursa bekleyip yeniden dener) → rapor bayi panelinde.
 /// </summary>
 public sealed class EndToEndTests : IDisposable
 {
     private const string AdminKey = "test-admin-key";
     private const string LanKey = "firma-lan-anahtari-1234";
     private const string Vkn = "1111111114";
-    private const string OldVersion = "17.7.3.46000";
     private const string NewVersion = "17.7.4.46277";
 
     private readonly TempDir _temp = new();
@@ -82,8 +82,7 @@ public sealed class EndToEndTests : IDisposable
             publishOutput, publishOutput, _factory.Server.CreateHandler());
         Assert.True(exit == 0, publishOutput.ToString());
 
-        // --- Sunucu ajanı: etkinleşir, yeni sürümü önceden indirir (sunucu henüz eski sürümde) ---
-        var serverMikro = new FakeMikro { Version = OldVersion };
+        // --- Sunucu ajanı: etkinleşir, yeni sürümü önceden indirir ---
         var serverOptions = new AgentOptions
         {
             Role = AgentRole.Server, VpsUrl = _factory.Server.BaseAddress.ToString(), LanKey = LanKey,
@@ -93,16 +92,14 @@ public sealed class EndToEndTests : IDisposable
         var serverLog = new TestLog();
         var clock = new FakeClock();
         var server = new ServerAgent(serverOptions, serverState, new VpsClient(_vpsHttp, serverOptions.VpsUrl),
-            new PackageCache(serverOptions.PackagesDirectory, _key.PublicOnly()), serverMikro, clock, serverLog);
+            new PackageCache(serverOptions.PackagesDirectory, _key.PublicOnly()), clock, serverLog);
 
         await server.ActivateAsync(activationCode, Vkn, "machine-1", "MIKROSUNUCU", CancellationToken.None);
+        // Paket henüz indirilmeden "İstemcileri Güncelle" reddedilir.
+        Assert.Throws<InvalidOperationException>(() => server.ReleaseForClients());
         await server.RunCycleAsync(CancellationToken.None);
         Assert.Equal($"Fly-x64-{NewVersion}", serverState.PrestagedPackageId);
         Assert.Null(serverState.ReleasedPackageId);
-
-        // Sunucu henüz güncellenmediği için istemci güncellemesi serbest bırakılamaz.
-        var early = Assert.Throws<InvalidOperationException>(() => server.ReleaseForClients());
-        Assert.Contains(OldVersion, early.Message);
 
         // --- Yerel ağ sunucusu ve istemci ajanı ---
         var port = Ports.Free();
@@ -111,9 +108,8 @@ public sealed class EndToEndTests : IDisposable
         using var lanCts = new CancellationTokenSource();
         var lanTask = lan.RunAsync(lanCts.Token);
 
-        var clientMikro = new FakeMikro { Version = OldVersion };
         var processes = new FakeProcesses();
-        var installer = new FakeInstaller(clientMikro) { VersionAfterInstall = NewVersion };
+        var installer = new FakeInstaller { ExitCode = 1 };
         var notifier = new FakeNotifier();
         var clientOptions = new AgentOptions
         {
@@ -123,7 +119,7 @@ public sealed class EndToEndTests : IDisposable
         using var clientHttp = new HttpClient();
         var client = new ClientAgent(clientOptions, new AgentState(), clientHttp,
             new PackageCache(clientOptions.PackagesDirectory, _key.PublicOnly()),
-            clientMikro, processes, installer, notifier, clock, new TestLog(), "MUHASEBE-PC");
+            processes, installer, notifier, clock, new TestLog(), "MUHASEBE-PC");
 
         // 1) İstemci paketi önceden indirir ama kurmaz.
         await client.RunCycleAsync(CancellationToken.None);
@@ -131,8 +127,7 @@ public sealed class EndToEndTests : IDisposable
         Assert.Equal(NewVersion, client.LastStatus.PrestagedVersion);
         Assert.Empty(installer.Runs);
 
-        // 2) Bayi sunucuyu günceller ve "İstemcileri Güncelle"ye basar. Kullanıcıda Mikro açık.
-        serverMikro.Version = NewVersion;
+        // 2) Bayi sunucuyu elle günceller ve "İstemcileri Güncelle"ye basar. Kullanıcıda Mikro açık.
         var released = server.ReleaseForClients();
         Assert.Equal(NewVersion, released.Version);
         processes.Running = true;
@@ -148,25 +143,39 @@ public sealed class EndToEndTests : IDisposable
         Assert.Equal(ClientState.WaitingForMikroToClose, client.LastStatus.State);
         Assert.Single(notifier.Messages);
 
-        // 4) Süre doldu: Mikro kapatılır, imzalı setup sessiz parametrelerle kurulur.
+        // 4) Süre doldu: Mikro kapatılır, imzalı setup sessiz parametrelerle çalıştırılır ama hata verir.
         clock.UtcNow = clock.UtcNow.AddMinutes(6);
         await client.RunCycleAsync(CancellationToken.None);
-        Assert.Equal(ClientState.UpToDate, client.LastStatus.State);
+        Assert.Equal(ClientState.Failed, client.LastStatus.State);
+        Assert.Contains("çıkış kodu 1", client.LastStatus.LastError);
         Assert.Equal(new[] { "MikroFly" }, processes.Killed);
         var run = Assert.Single(installer.Runs);
         Assert.Equal(PublisherCli.DefaultInstallerArguments, run.Args);
-        Assert.Equal(NewVersion, clientMikro.Version);
 
-        // 5) Bir sonraki turda tekrar kurulum yapılmaz.
+        // 5) Hatadan sonra her dakika yeniden denenmez; 15 dakika beklenir.
+        clock.UtcNow = clock.UtcNow.AddMinutes(5);
         await client.RunCycleAsync(CancellationToken.None);
+        Assert.Equal(ClientState.Failed, client.LastStatus.State);
         Assert.Single(installer.Runs);
+
+        // 6) Süre dolunca yeniden denenir ve bu sefer başarılı olur.
+        installer.ExitCode = 0;
+        clock.UtcNow = clock.UtcNow.AddMinutes(11);
+        await client.RunCycleAsync(CancellationToken.None);
+        Assert.Equal(ClientState.UpToDate, client.LastStatus.State);
+        Assert.Equal(NewVersion, client.LastStatus.InstalledVersion);
+        Assert.Equal(2, installer.Runs.Count);
+
+        // 7) Aynı paket ikinci kez kurulmaz.
+        await client.RunCycleAsync(CancellationToken.None);
+        Assert.Equal(2, installer.Runs.Count);
 
         // --- Sunucu ajanı VPS'e rapor eder, bayi panelinde görünür ---
         await server.RunCycleAsync(CancellationToken.None);
         var companies = await dealer.GetFromJsonAsync<List<DealerEndpoints.CompanyView>>("/api/dealer/companies", JsonDefaults.Options);
         var view = Assert.Single(companies!);
         Assert.True(view.Activated);
-        Assert.Equal(NewVersion, view.LastReport!.ServerMikroVersion);
+        Assert.Equal(NewVersion, view.LastReport!.ReleasedVersion);
         var clientView = Assert.Single(view.LastReport.Clients);
         Assert.Equal("MUHASEBE-PC", clientView.MachineName);
         Assert.Equal(ClientState.UpToDate, clientView.State);

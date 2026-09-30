@@ -43,15 +43,6 @@ namespace BiDeploy.Agent.Core
 
         public int ClientPollSeconds { get; set; } = 60;
 
-        /// <summary>Kurulu Mikro exe'sinin tam yolu. Boşsa registry'den bulunur.</summary>
-        public string? MikroExePath { get; set; }
-
-        /// <summary>
-        /// true ise sunucudaki Mikro sürümü değiştiğinde istemci güncellemesi otomatik başlar.
-        /// false ise bayinin "İstemcileri Güncelle" komutunu vermesi beklenir.
-        /// </summary>
-        public bool AutoRelease { get; set; }
-
         public int ForceCloseAfterMinutes { get; set; } = 10;
 
         public int InstallTimeoutMinutes { get; set; } = 30;

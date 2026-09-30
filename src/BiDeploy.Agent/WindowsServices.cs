@@ -8,61 +8,6 @@ using Microsoft.Win32;
 
 namespace BiDeploy.Agent
 {
-    /// <summary>
-    /// Kurulu Mikro sürümünü bulur: önce agent.json'daki MikroExePath, yoksa Inno Setup'ın registry'ye yazdığı
-    /// kaldırma kaydı (InstallLocation) + ana exe'nin FileVersion değeri, o da yoksa kayıttaki DisplayVersion.
-    /// </summary>
-    internal sealed class WindowsMikroInstallation : IMikroInstallation
-    {
-        private const string UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
-        private readonly string? _exePathOverride;
-        private readonly string _product;
-
-        public WindowsMikroInstallation(string? exePathOverride, string product)
-        {
-            _exePathOverride = exePathOverride;
-            _product = product;
-        }
-
-        public string? GetInstalledVersion(string mainExecutable)
-        {
-            if (!string.IsNullOrWhiteSpace(_exePathOverride))
-                return File.Exists(_exePathOverride) ? ReadFileVersion(_exePathOverride!) : null;
-
-            foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
-            {
-                using var root = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
-                using var uninstall = root.OpenSubKey(UninstallKey);
-                if (uninstall == null) continue;
-                foreach (var name in uninstall.GetSubKeyNames())
-                {
-                    using var entry = uninstall.OpenSubKey(name);
-                    var displayName = entry?.GetValue("DisplayName") as string;
-                    if (displayName == null
-                        || displayName.IndexOf("Mikro", StringComparison.OrdinalIgnoreCase) < 0
-                        || displayName.IndexOf(_product, StringComparison.OrdinalIgnoreCase) < 0) continue;
-
-                    var location = entry!.GetValue("InstallLocation") as string;
-                    if (!string.IsNullOrWhiteSpace(location))
-                    {
-                        var exe = Path.Combine(location!, mainExecutable);
-                        if (File.Exists(exe)) return ReadFileVersion(exe);
-                    }
-                    var displayVersion = entry.GetValue("DisplayVersion") as string;
-                    if (MikroVersion.TryParse(displayVersion, out _)) return displayVersion;
-                }
-            }
-            return null;
-        }
-
-        private static string? ReadFileVersion(string path)
-        {
-            var info = FileVersionInfo.GetVersionInfo(path);
-            var text = string.IsNullOrWhiteSpace(info.FileVersion) ? info.ProductVersion : info.FileVersion;
-            return MikroVersion.TryParse(text, out var v) ? v.ToString() : null;
-        }
-    }
-
     internal sealed class WindowsProcessControl : IProcessControl
     {
         public bool IsRunning(string processName)

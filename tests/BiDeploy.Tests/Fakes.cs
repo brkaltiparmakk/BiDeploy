@@ -4,12 +4,6 @@ using BiDeploy.Agent.Core;
 
 namespace BiDeploy.Tests;
 
-internal sealed class FakeMikro : IMikroInstallation
-{
-    public string? Version { get; set; }
-    public string? GetInstalledVersion(string mainExecutable) => Version;
-}
-
 internal sealed class FakeProcesses : IProcessControl
 {
     public bool Running { get; set; }
@@ -22,17 +16,14 @@ internal sealed class FakeProcesses : IProcessControl
     }
 }
 
-/// <summary>Kurulumu taklit eder: başarılıysa kurulu sürümü setup'ın sürümüne çeker.</summary>
-internal sealed class FakeInstaller(FakeMikro mikro) : IInstallerRunner
+internal sealed class FakeInstaller : IInstallerRunner
 {
     public List<(string Setup, string Args)> Runs { get; } = new();
     public int ExitCode { get; set; }
-    public string? VersionAfterInstall { get; set; }
 
     public InstallResult Run(string setupPath, string arguments, string logPath, TimeSpan timeout)
     {
         Runs.Add((setupPath, arguments));
-        if (ExitCode == 0) mikro.Version = VersionAfterInstall;
         return new InstallResult { ExitCode = ExitCode, LogTail = ExitCode == 0 ? null : "Setup hata verdi" };
     }
 }

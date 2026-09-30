@@ -12,7 +12,7 @@ namespace BiDeploy.Agent
 
   BiDeploy.Agent.exe run                      Konsolda çalıştır (test için)
   BiDeploy.Agent.exe activate <KOD> <VKN>     Sunucu ajanını lisansla etkinleştir
-  BiDeploy.Agent.exe release                  İstemcileri Güncelle (sunucudaki Mikro sürümüne)
+  BiDeploy.Agent.exe release                  İstemcileri Güncelle (önceden indirilen sürümü kurdur)
   BiDeploy.Agent.exe status                   Sunucu ve istemci durumunu göster
 
 Servis olarak kurulum (yönetici komut isteminde):

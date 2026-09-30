@@ -25,17 +25,16 @@ namespace BiDeploy.Agent
             var trustedKey = LoadTrustedKey();
             var state = AgentState.Load(Options.StateFile); // İki rol aynı durum nesnesini paylaşır.
             var cache = new PackageCache(Options.PackagesDirectory, trustedKey);
-            var mikro = new WindowsMikroInstallation(Options.MikroExePath, Options.Product);
             var clock = new SystemClock();
 
             if (Options.Role.HasFlag(AgentRole.Server))
-                Server = new ServerAgent(Options, state, new VpsClient(_http, Options.VpsUrl), cache, mikro, clock, Log);
+                Server = new ServerAgent(Options, state, new VpsClient(_http, Options.VpsUrl), cache, clock, Log);
 
             if (Options.Role.HasFlag(AgentRole.Client))
             {
                 if (Options.Role == AgentRole.Both && string.IsNullOrWhiteSpace(Options.ServerUrl))
                     Options.ServerUrl = "http://localhost:" + new Uri(Options.LanListenPrefix.Replace("+", "localhost")).Port + "/";
-                Client = new ClientAgent(Options, state, _http, cache, mikro, new WindowsProcessControl(),
+                Client = new ClientAgent(Options, state, _http, cache, new WindowsProcessControl(),
                     new InnoSetupRunner(), new MsgExeNotifier(Log), clock, Log, Environment.MachineName);
             }
         }

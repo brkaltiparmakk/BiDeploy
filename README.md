@@ -18,8 +18,8 @@ bilgisayarlar, önceden indirilmiş imzalı setup ile aynı anda ve sessizce gü
    ürün ve mimari dosya adından (`Fly_v17xx_Client_Setupx064.exe` → Fly / x64) otomatik okunur.
 2. Sunucu ajanı yeni paketi VPS'ten bir kez indirir; istemciler yerel ağdan kendi diskine çeker. **Kurulum yapılmaz.**
 3. Bayi Mikro sunucusunu elle günceller.
-4. `BiDeploy.Agent.exe release` ("İstemcileri Güncelle"): sunucudaki Mikro sürümüyle eşleşen paket serbest bırakılır.
-   Sunucu henüz güncellenmediyse komut reddedilir. `autoRelease: true` ile bu adım otomatik olur.
+4. Bayi hazır olduğunda `BiDeploy.Agent.exe release` ("İstemcileri Güncelle") komutunu verir; önceden indirilen paket
+   istemcilere serbest bırakılır. Ne zaman kurulacağına bayi karar verir, sistem Mikro'nun kurulu sürümünü okumaz.
 5. İstemcide Mikro açıksa kullanıcılar uyarılır (`msg *`, terminal server oturumları dahil), süre dolunca
    `MikroFly.exe` kapatılır ve setup `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS` ile kurulur.
 6. Sonuç sunucu ajanına, oradan VPS'e raporlanır; bayi `GET /api/dealer/companies` ile görür.
@@ -30,7 +30,8 @@ bilgisayarlar, önceden indirilmiş imzalı setup ile aynı anda ve sessizce gü
   Ajan, exe'ye gömülü açık anahtarla imzayı ve dosya özetini doğrulamadan hiçbir şey kurmaz. VPS ele geçirilse bile
   müşterilere sahte paket kurdurulamaz; bayiler de başka exe dağıtamaz.
 - Özel anahtar sadece yayıncı bilgisayarında durur (`*.key.json` git'e girmez).
-- Ajan asla eski sürüme dönmez; bayi anahtarları ve cihaz jetonları veritabanında yalnızca özet olarak tutulur.
+- İstemci hangi paketi kurduğunu kendisi kaydeder, aynı paketi iki kez kurmaz; hatalı kurulumu 15 dk sonra yeniden dener.
+- Bayi anahtarları ve cihaz jetonları veritabanında yalnızca özet olarak tutulur.
 - Lisans bitse de müşterinin Mikro'su etkilenmez; sadece yeni sürüm dağıtımı durur.
 
 ## Projeler

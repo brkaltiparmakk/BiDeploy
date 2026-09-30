@@ -16,7 +16,9 @@ namespace BiDeploy.Agent.Core
         public string? ReleasedPackageId { get; set; }
         public DateTime? ReleasedAtUtc { get; set; }
 
-        // İstemci rolü
+        // İstemci rolü: hangi paketin kurulduğu ajanın kendi kaydıdır; Mikro'nun sürümü okunmaz.
+        public string? LastInstalledPackageId { get; set; }
+        public string? LastInstalledVersion { get; set; }
         public string? WaitingForCloseSincePackageId { get; set; }
         public DateTime? WaitingForCloseSinceUtc { get; set; }
         public string? LastFailedPackageId { get; set; }

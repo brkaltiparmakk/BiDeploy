@@ -18,7 +18,6 @@ namespace BiDeploy.Agent.Core
         private readonly AgentState _state;
         private readonly VpsClient _vps;
         private readonly PackageCache _cache;
-        private readonly IMikroInstallation _mikro;
         private readonly IClock _clock;
         private readonly IAgentLog _log;
         private readonly ConcurrentDictionary<string, ClientStatus> _clients =
@@ -26,19 +25,16 @@ namespace BiDeploy.Agent.Core
         private readonly object _stateLock = new object();
 
         public ServerAgent(AgentOptions options, AgentState state, VpsClient vps, PackageCache cache,
-            IMikroInstallation mikro, IClock clock, IAgentLog log)
+            IClock clock, IAgentLog log)
         {
             _options = options;
             _state = state;
             _vps = vps;
             _cache = cache;
-            _mikro = mikro;
             _clock = clock;
             _log = log;
             _vps.DeviceToken = state.DeviceToken;
         }
-
-        public string? ServerMikroVersion { get; private set; }
 
         public async Task ActivateAsync(string activationCode, string vkn, string machineId, string machineName, CancellationToken ct)
         {
@@ -62,7 +58,7 @@ namespace BiDeploy.Agent.Core
             _log.Info($"Etkinleştirildi: {response.CompanyTitle}, lisans bitişi {response.LicenseExpiresAtUtc:yyyy-MM-dd}");
         }
 
-        /// <summary>Bir tur: VPS'ten yeni sürümü sor, önceden indir, sunucu sürümünü algıla, VPS'e rapor et.</summary>
+        /// <summary>Bir tur: VPS'ten yeni sürümü sor, önceden indir, VPS'e rapor et.</summary>
         public async Task RunCycleAsync(CancellationToken ct)
         {
             if (string.IsNullOrEmpty(_state.DeviceToken))
@@ -72,8 +68,6 @@ namespace BiDeploy.Agent.Core
             }
 
             await PrestageLatestAsync(ct).ConfigureAwait(false);
-            DetectServerVersion();
-            if (_options.AutoRelease) TryAutoRelease();
             _cache.Prune(_state.PrestagedPackageId, _state.ReleasedPackageId);
 
             try
@@ -133,46 +127,17 @@ namespace BiDeploy.Agent.Core
             }
         }
 
-        private void DetectServerVersion()
-        {
-            var mainExe = CurrentManifest()?.MainExecutable ?? DefaultMainExecutable(_options.Product);
-            try
-            {
-                ServerMikroVersion = _mikro.GetInstalledVersion(mainExe);
-            }
-            catch (Exception ex)
-            {
-                _log.Error("Sunucudaki Mikro sürümü okunamadı", ex);
-                ServerMikroVersion = null;
-            }
-        }
-
-        internal static string DefaultMainExecutable(string product) => "Mikro" + product + ".exe";
-
-        private PackageManifest? CurrentManifest()
-        {
-            var signed = _cache.TryGetReady(_state.PrestagedPackageId) ?? _cache.TryGetReady(_state.ReleasedPackageId);
-            return signed == null ? null : PackageManifest.Parse(signed.ManifestBytes());
-        }
-
         /// <summary>
-        /// "İstemcileri Güncelle": sunucudaki Mikro sürümüne karşılık gelen paketi istemcilere serbest bırakır.
-        /// Sunucu henüz güncellenmediyse veya paket hazır değilse hata verir.
+        /// "İstemcileri Güncelle": bayi Mikro sunucusunu güncelledikten sonra bu komutu verir; önceden indirilmiş
+        /// paket istemcilere serbest bırakılır. Hangi sürümün ne zaman kurulacağına bayi karar verir.
         /// </summary>
         public PackageManifest ReleaseForClients()
         {
-            DetectServerVersion();
-            if (ServerMikroVersion == null)
-                throw new InvalidOperationException("Sunucudaki Mikro sürümü okunamadı; önce sunucuyu güncelleyin veya MikroExePath ayarını kontrol edin.");
-
-            var package = MatchingPackage(ServerMikroVersion);
-            if (package == null)
-                throw new InvalidOperationException(
-                    $"Sunucu sürümü {ServerMikroVersion}, ancak bu sürümün istemci paketi hazır değil" +
-                    (_state.PrestagedPackageId != null ? $" (hazır olan: {_state.PrestagedPackageId})." : "."));
-
             lock (_stateLock)
             {
+                var signed = _cache.TryGetReady(_state.PrestagedPackageId)
+                    ?? throw new InvalidOperationException("Dağıtıma hazır paket yok; sunucu ajanı yeni sürümü henüz indirmedi.");
+                var package = PackageManifest.Parse(signed.ManifestBytes());
                 if (_state.ReleasedPackageId != package.PackageId)
                 {
                     _state.ReleasedPackageId = package.PackageId;
@@ -180,27 +145,8 @@ namespace BiDeploy.Agent.Core
                     SaveState();
                     _log.Info($"İstemci güncellemesi serbest bırakıldı: {package.PackageId}");
                 }
+                return package;
             }
-            return package;
-        }
-
-        private void TryAutoRelease()
-        {
-            if (ServerMikroVersion == null) return;
-            var package = MatchingPackage(ServerMikroVersion);
-            if (package != null && package.PackageId != _state.ReleasedPackageId) ReleaseForClients();
-        }
-
-        private PackageManifest? MatchingPackage(string serverVersion)
-        {
-            foreach (var id in new[] { _state.PrestagedPackageId, _state.ReleasedPackageId })
-            {
-                var signed = _cache.TryGetReady(id);
-                if (signed == null) continue;
-                var manifest = PackageManifest.Parse(signed.ManifestBytes());
-                if (MikroVersion.AreEqual(manifest.Version, serverVersion)) return manifest;
-            }
-            return null;
         }
 
         // ---- Yerel ağ tarafı ----
@@ -247,7 +193,6 @@ namespace BiDeploy.Agent.Core
                 return new ServerReport
                 {
                     AgentVersion = typeof(ServerAgent).Assembly.GetName().Version?.ToString() ?? "",
-                    ServerMikroVersion = ServerMikroVersion,
                     PrestagedVersion = VersionOf(_state.PrestagedPackageId),
                     ReleasedVersion = VersionOf(_state.ReleasedPackageId),
                     Clients = _clients.Values.OrderBy(c => c.MachineName).ToList(),
