@@ -1,0 +1,14 @@
+{
+  "role": "Server",
+  "vpsUrl": "https://deploy.biyazilim.com.tr",
+  "serverUrl": "http://MIKROSUNUCU:8765/",
+  "lanListenPrefix": "http://+:8765/",
+  "lanKey": "firmaya-ozel-en-az-16-karakter",
+  "product": "Fly",
+  "architecture": "x64",
+  "mikroExePath": null,
+  "autoRelease": false,
+  "forceCloseAfterMinutes": 10,
+  "serverPollSeconds": 300,
+  "clientPollSeconds": 60
+}

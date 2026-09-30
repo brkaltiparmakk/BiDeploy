@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    .NET Framework 4.8: Windows Server 2012 R2'den Windows 11'e kadar her yerde çalışır,
+    Windows 10 1903+ ve Server 2022'de hazır gelir. Aynı exe hem sunucu hem istemci rolünü üstlenir.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>BiDeploy.Agent</AssemblyName>
+    <RootNamespace>BiDeploy.Agent</RootNamespace>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BiDeploy.Agent.Core\BiDeploy.Agent.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.ServiceProcess" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Yayıncı açık anahtarı exe'ye gömülür; ajan yalnızca bu anahtarla imzalanmış paketleri kurar. -->
+    <EmbeddedResource Include="trusted-publisher.pub.json" LogicalName="BiDeploy.trusted-publisher.pub.json" />
+    <None Include="agent.sample.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

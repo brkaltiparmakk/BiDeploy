@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Ajanın platformdan bağımsız mantığı. Windows'a özgü parçalar (registry, servis) BiDeploy.Agent'ta. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BiDeploy.Core\BiDeploy.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="BiDeploy.Tests" />
+  </ItemGroup>
+</Project>

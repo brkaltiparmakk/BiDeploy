@@ -1,0 +1,43 @@
+# VPS kurulumu: docker compose up -d
+# Önce .env dosyasında BIDEPLOY_ADMIN_KEY ve POSTGRES_PASSWORD tanımlayın, keys/publisher.pub.json dosyasını koyun.
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bideploy
+      POSTGRES_USER: bideploy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD gerekli}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: src/BiDeploy.Server/Dockerfile
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      BiDeploy__AdminKey: ${BIDEPLOY_ADMIN_KEY:?BIDEPLOY_ADMIN_KEY gerekli}
+      BiDeploy__DatabaseProvider: Postgres
+      BiDeploy__PublisherPublicKeyPath: /keys/publisher.pub.json
+      BiDeploy__StorageDirectory: /storage
+      ConnectionStrings__BiDeploy: Host=db;Database=bideploy;Username=bideploy;Password=${POSTGRES_PASSWORD}
+    volumes:
+      - ./keys/publisher.pub.json:/keys/publisher.pub.json:ro
+      - storage:/storage
+
+  # HTTPS: Caddy, Let's Encrypt sertifikasını otomatik alır. DOMAIN'i .env'de tanımlayın.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [api]
+    ports: ["80:80", "443:443"]
+    command: caddy reverse-proxy --from ${DOMAIN:?DOMAIN gerekli} --to api:8080
+    volumes:
+      - caddydata:/data
+
+volumes:
+  pgdata:
+  storage:
+  caddydata:

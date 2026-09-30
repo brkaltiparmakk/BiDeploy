@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- BiYazılım'ın kendi bilgisayarında çalışan yayıncı aracı. Özel anahtar bu bilgisayardan çıkmaz. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>bideploy-publish</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BiDeploy.Core\BiDeploy.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="BiDeploy.Tests" />
+  </ItemGroup>
+</Project>
